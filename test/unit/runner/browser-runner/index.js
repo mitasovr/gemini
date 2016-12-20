@@ -1,5 +1,6 @@
 'use strict';
 
+const _ = require('lodash');
 const Promise = require('bluebird');
 const BrowserRunner = require('lib/runner/browser-runner');
 const BrowserAgent = require('lib/runner/browser-runner/browser-agent');
@@ -26,11 +27,15 @@ describe('runner/BrowserRunner', () => {
 
     afterEach(() => sandbox.restore());
 
-    const mkRunner_ = (browser, browserPool) => {
+    const mkRunner_ = (browser, config) => {
+        const configStub = sinon.createStubInstance(Config);
+        const browserConfig = _.get(config, 'browser', {});
+        configStub.forBrowser.returns(_.defaults({}, browserConfig));
+
         return BrowserRunner.create(
             browser || 'default-browser',
-            sinon.createStubInstance(Config),
-            browserPool || sinon.createStubInstance(BasicPool)
+            configStub,
+            sinon.createStubInstance(BasicPool)
         );
     };
 
@@ -55,7 +60,7 @@ describe('runner/BrowserRunner', () => {
             return runner.run(suiteCollection)
                 .then(() => {
                     assert.calledOnce(suiteRunnerFabric.create);
-                    assert.calledWith(suiteRunnerFabric.create, someSuite);
+                    assert.calledWithMatch(suiteRunnerFabric.create, someSuite);
                 });
         });
 
@@ -111,6 +116,64 @@ describe('runner/BrowserRunner', () => {
 
                     assert.calledTwice(suiteRunner.cancel);
                 });
+        });
+
+        describe('add metaInfo to suite', () => {
+            it('should concatenate rootUrl and suiteUrl', () => {
+                const config = {browser: {rootUrl: 'http://localhost/foo/bar/'}};
+                const someSuite = makeSuiteStub({browsers: ['browser'], url: 'testUrl'});
+                const suiteCollection = new SuiteCollection([someSuite]);
+
+                const runner = mkRunner_('browser', config);
+
+                return runner.run(suiteCollection)
+                    .then(() => {
+                        const suite = suiteRunnerFabric.create.args[0][0];
+                        assert.equal(suite.metaInfo.url, '/foo/bar/testUrl');
+                    });
+            });
+
+            it('should concatenate with slash between rootUrl and suiteUrl', () => {
+                const config = {browser: {rootUrl: 'http://localhost/foo/baz'}};
+                const someSuite = makeSuiteStub({browsers: ['browser'], url: 'testUrl'});
+                const suiteCollection = new SuiteCollection([someSuite]);
+
+                const runner = mkRunner_('browser', config);
+
+                return runner.run(suiteCollection)
+                    .then(() => {
+                        const suite = suiteRunnerFabric.create.args[0][0];
+                        assert.equal(suite.metaInfo.url, '/foo/baz/testUrl');
+                    });
+            });
+
+            it('should remove consecutive slashes', () => {
+                const config = {browser: {rootUrl: 'http://localhost/foo/qux/'}};
+                const someSuite = makeSuiteStub({browsers: ['browser'], url: '/testUrl'});
+                const suiteCollection = new SuiteCollection([someSuite]);
+
+                const runner = mkRunner_('browser', config);
+
+                return runner.run(suiteCollection)
+                    .then(() => {
+                        const suite = suiteRunnerFabric.create.args[0][0];
+                        assert.equal(suite.metaInfo.url, '/foo/qux/testUrl');
+                    });
+            });
+
+            it('should cut latest slashes from url', () => {
+                const config = {browser: {rootUrl: 'http://localhost/foo/bat/'}};
+                const someSuite = makeSuiteStub({browsers: ['browser'], url: 'testUrl//'});
+                const suiteCollection = new SuiteCollection([someSuite]);
+
+                const runner = mkRunner_('browser', config);
+
+                return runner.run(suiteCollection)
+                    .then(() => {
+                        const suite = suiteRunnerFabric.create.args[0][0];
+                        assert.equal(suite.metaInfo.url, '/foo/bat/testUrl');
+                    });
+            });
         });
     });
 });
