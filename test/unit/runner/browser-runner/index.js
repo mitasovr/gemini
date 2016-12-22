@@ -30,7 +30,7 @@ describe('runner/BrowserRunner', () => {
     const mkRunner_ = (browser, config) => {
         const configStub = sinon.createStubInstance(Config);
         const browserConfig = _.get(config, 'browser', {});
-        configStub.forBrowser.returns(_.defaults({}, browserConfig));
+        configStub.forBrowser.returns(browserConfig);
 
         return BrowserRunner.create(
             browser || 'default-browser',
@@ -119,6 +119,36 @@ describe('runner/BrowserRunner', () => {
         });
 
         describe('add metaInfo to suite', () => {
+            it('should not modify suite if "url" in "metaInfo" is already exists', () => {
+                const config = {browser: {rootUrl: 'http://localhost/foo/bar/'}};
+                const someSuite = makeSuiteStub({browsers: ['browser'], url: 'testUrl'});
+                someSuite.metaInfo = {url: 'testUrl'};
+                const suiteCollection = new SuiteCollection([someSuite]);
+
+                const runner = mkRunner_('browser', config);
+
+                return runner.run(suiteCollection)
+                    .then(() => {
+                        const suite = suiteRunnerFabric.create.args[0][0];
+                        assert.equal(suite.metaInfo.url, 'testUrl');
+                    });
+            });
+
+            it('should modify suite if "url" not exists in "metaInfo"', () => {
+                const config = {browser: {rootUrl: 'http://localhost/foo/bar/'}};
+                const someSuite = makeSuiteStub({browsers: ['browser'], url: 'testUrl'});
+                someSuite.metaInfo = {};
+                const suiteCollection = new SuiteCollection([someSuite]);
+
+                const runner = mkRunner_('browser', config);
+
+                return runner.run(suiteCollection)
+                    .then(() => {
+                        const suite = suiteRunnerFabric.create.args[0][0];
+                        assert.isDefined(suite.metaInfo.url);
+                    });
+            });
+
             it('should concatenate rootUrl and suiteUrl', () => {
                 const config = {browser: {rootUrl: 'http://localhost/foo/bar/'}};
                 const someSuite = makeSuiteStub({browsers: ['browser'], url: 'testUrl'});

@@ -15,10 +15,8 @@ const _ = require('lodash');
 describe('runner/suite-runner/insistent-suite-runner', () => {
     const sandbox = sinon.sandbox.create();
 
-    const mkConfigStub_ = (opts) => {
-        return {
-            forBrowser: () => opts || {foo: 'default-bar'}
-        };
+    const mkBrowserConfigStub_ = (opts) => {
+        return opts || {foo: 'default-bar'};
     };
 
     const mkBrowserAgentStub_ = (browserId) => {
@@ -33,7 +31,7 @@ describe('runner/suite-runner/insistent-suite-runner', () => {
         return InsistentSuiteRunner.create(
             opts.suite || makeSuiteStub({states: [makeStateStub()]}),
             opts.browserAgent || mkBrowserAgentStub_(),
-            opts.config || mkConfigStub_({retry: 0})
+            opts.browserConfig || mkBrowserConfigStub_({retry: 0})
         );
     };
 
@@ -53,11 +51,11 @@ describe('runner/suite-runner/insistent-suite-runner', () => {
     it('should create regular suite runner', () => {
         const suite = makeSuiteStub();
         const browserAgent = mkBrowserAgentStub_();
-        const config = mkConfigStub_();
+        const browserConfig = mkBrowserConfigStub_();
 
         sandbox.spy(RegularSuiteRunner, 'create');
 
-        return InsistentSuiteRunner.create(suite, browserAgent, config)
+        return InsistentSuiteRunner.create(suite, browserAgent, browserConfig)
             .run()
             .then(() => {
                 assert.calledOnce(RegularSuiteRunner.create);
@@ -174,7 +172,7 @@ describe('runner/suite-runner/insistent-suite-runner', () => {
     describe('run with retries', () => {
         const mkRunnerWithRetries_ = (opts) => {
             return mkInsistentRunner_(_.extend(opts || {}, {
-                config: mkConfigStub_({retry: 1})
+                browserConfig: mkBrowserConfigStub_({retry: 1})
             }));
         };
 
@@ -191,11 +189,11 @@ describe('runner/suite-runner/insistent-suite-runner', () => {
                 });
 
                 const browserAgent = mkBrowserAgentStub_('bro');
-                const config = mkConfigStub_({retry: 3});
+                const browserConfig = mkBrowserConfigStub_({retry: 3});
                 const onError = sinon.spy().named('onError');
                 const onRetry = sinon.spy().named('onRetry');
 
-                return mkInsistentRunner_({suite, browserAgent, config})
+                return mkInsistentRunner_({suite, browserAgent, browserConfig})
                     .on(Events.ERROR, onError)
                     .on(Events.RETRY, onRetry)
                     .run()
@@ -214,11 +212,11 @@ describe('runner/suite-runner/insistent-suite-runner', () => {
                     });
             });
 
-            it('should retry as much times as specified in config', () => {
+            it('should retry as much times as specified in browserConfig', () => {
                 stubWrappedRun_((runner) => runner.emit(Events.ERROR, {state: makeStateStub()}));
-                const config = mkConfigStub_({retry: 2});
+                const browserConfig = mkBrowserConfigStub_({retry: 2});
 
-                return mkInsistentRunner_({config})
+                return mkInsistentRunner_({browserConfig})
                     .run()
                     .then(() => assert.callCount(RegularSuiteRunner.prototype.run, 1 + 2));
             });
@@ -230,9 +228,9 @@ describe('runner/suite-runner/insistent-suite-runner', () => {
                     runner.emit(Events.ERROR, {state});
                     runner.emit(Events.ERROR, {state});
                 });
-                const config = mkConfigStub_({retry: 2});
+                const browserConfig = mkBrowserConfigStub_({retry: 2});
 
-                return mkInsistentRunner_({config})
+                return mkInsistentRunner_({browserConfig})
                     .run()
                     .then(() => assert.callCount(RegularSuiteRunner.prototype.run, 1 + 2));
             });
@@ -292,11 +290,11 @@ describe('runner/suite-runner/insistent-suite-runner', () => {
                 });
 
                 const browserAgent = mkBrowserAgentStub_('bro');
-                const config = mkConfigStub_({retry: 3});
+                const browserConfig = mkBrowserConfigStub_({retry: 3});
                 const onTestResult = sinon.spy().named('onTestResult');
                 const onRetry = sinon.spy().named('onRetry');
 
-                return mkInsistentRunner_({suite, browserAgent, config})
+                return mkInsistentRunner_({suite, browserAgent, browserConfig})
                     .on(Events.TEST_RESULT, onTestResult)
                     .on(Events.RETRY, onRetry)
                     .run()
@@ -315,11 +313,11 @@ describe('runner/suite-runner/insistent-suite-runner', () => {
                     });
             });
 
-            it('should retry as much times as specified in config', () => {
+            it('should retry as much times as specified in browserConfig', () => {
                 stubWrappedRun_((runner) => runner.emit(Events.TEST_RESULT, {equal: false, state: makeStateStub()}));
-                const config = mkConfigStub_({retry: 2});
+                const browserConfig = mkBrowserConfigStub_({retry: 2});
 
-                return mkInsistentRunner_({config})
+                return mkInsistentRunner_({browserConfig})
                     .run()
                     .then(() => assert.callCount(RegularSuiteRunner.prototype.run, 1 + 2));
             });
@@ -331,9 +329,9 @@ describe('runner/suite-runner/insistent-suite-runner', () => {
                     runner.emit(Events.TEST_RESULT, {equal: false, state});
                     runner.emit(Events.TEST_RESULT, {equal: false, state});
                 });
-                const config = mkConfigStub_({retry: 2});
+                const browserConfig = mkBrowserConfigStub_({retry: 2});
 
-                return mkInsistentRunner_({config})
+                return mkInsistentRunner_({browserConfig})
                     .run()
                     .then(() => assert.callCount(RegularSuiteRunner.prototype.run, 1 + 2));
             });
@@ -374,8 +372,8 @@ describe('runner/suite-runner/insistent-suite-runner', () => {
 
     describe('cancel', () => {
         it('should not retry after cancel', () => {
-            const config = mkConfigStub_({retry: 1});
-            const insistantRunner = mkInsistentRunner_({config});
+            const browserConfig = mkBrowserConfigStub_({retry: 1});
+            const insistantRunner = mkInsistentRunner_({browserConfig});
 
             stubWrappedRun_((runner) => {
                 runner.emit(Events.TEST_RESULT, {state: makeStateStub(), equal: false});
@@ -389,8 +387,8 @@ describe('runner/suite-runner/insistent-suite-runner', () => {
         });
 
         it('should not emit retry events after cancel', () => {
-            const config = mkConfigStub_({retry: 1});
-            const insistantRunner = mkInsistentRunner_({config});
+            const browserConfig = mkBrowserConfigStub_({retry: 1});
+            const insistantRunner = mkInsistentRunner_({browserConfig});
             const onRetry = sinon.spy().named('onRetry');
 
             stubWrappedRun_((runner) => {
@@ -417,8 +415,8 @@ describe('runner/suite-runner/insistent-suite-runner', () => {
                 Events.CAPTURE
             ].forEach((event) => {
                 it(`${event}`, () => {
-                    const config = mkConfigStub_({retry: 0});
-                    const insistantRunner = mkInsistentRunner_({config});
+                    const browserConfig = mkBrowserConfigStub_({retry: 0});
+                    const insistantRunner = mkInsistentRunner_({browserConfig});
                     const onEventHandler = sinon.spy().named(event);
 
                     stubWrappedRun_((runner) => {

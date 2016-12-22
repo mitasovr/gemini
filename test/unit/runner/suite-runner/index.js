@@ -79,7 +79,7 @@ describe('runner/suite-runner/create', () => {
             assert.notCalled(SkippedRunner);
         });
 
-        it('should return DecoratorSuiteRunner for InsistentSuiteRunner', () => {
+        it('should return InsistentSuiteRunner for other suites', () => {
             const runner = makeSuiteRunner(makeSuite());
 
             assert.instanceOf(runner, InsistentRunner);
