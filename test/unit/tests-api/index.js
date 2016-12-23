@@ -195,4 +195,29 @@ describe('tests-api', function() {
             assert.isFalse(this.suite.children[0].children[0].hasOwnProperty('browsers'));
         });
     });
+
+    describe('file path', function() {
+        var file = 'path/file.js',
+            gemini;
+
+        beforeEach(function() {
+            gemini = testsAPI(this.suite, [], file);
+        });
+
+        it('should be set for suite', function() {
+            gemini.suite('suite', function() {});
+
+            assert.equal(this.suite.children[0].file, file);
+            assert.isTrue(this.suite.children[0].hasOwnProperty('file'));
+        });
+
+        it('should not be set for not top level suite', function() {
+            gemini.suite('suite', function() {
+                gemini.suite('child', function() {});
+            });
+
+            assert.equal(this.suite.children[0].children[0].file, file);
+            assert.isFalse(this.suite.children[0].children[0].hasOwnProperty('file'));
+        });
+    });
 });
